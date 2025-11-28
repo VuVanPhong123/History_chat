@@ -21,3 +21,38 @@ TOP 5 CAU HOI DIEM CAO NHAT:
    Diem: 1.00
 5. Hồ Quý Ly có những cải cách gì?...
    Diem: 1.00
+
+evaluate_classification:
+============================================================
+📊 KẾT QUẢ TỔNG HỢP
+Tổng số test: 500
+Số test đúng: 473
+Độ chính xác: 94.60%
+
+📈 PHÂN TÍCH THEO LOẠI:
+  VAGUE: 111/125 (88.80%)
+  INSUFFICIENT_INFO: 120/125 (96.00%)
+  OUT_OF_DOMAIN: 125/125 (100.00%)
+  HISTORY_DIRECT: 117/125 (93.60%)
+
+⚠️ Tổng 27 trường hợp sai — hiển thị tối đa 20:
+ - Expected=HISTORY_DIRECT     Predicted=VAGUE              Q: Nhà Trần và nhà Lê từng xây dựng kinh đô thứ hai tại đâu?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Vật phẩm đó dùng để làm gì?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Bà ấy có con với ai?
+ - Expected=HISTORY_DIRECT     Predicted=OUT_OF_DOMAIN      Q: Chữ Quốc ngữ được truyền vào Việt Nam bởi nhóm truyền giáo nào?
+ - Expected=INSUFFICIENT_INFO  Predicted=OUT_OF_DOMAIN      Q: Ai là người đăng video đầu tiên lên mạng xã hội thời Trần tên 'TracTok'?
+ - Expected=HISTORY_DIRECT     Predicted=INSUFFICIENT_INFO  Q: Ai là vua nổi tiếng với chính sách cải cách năm 1896?
+ - Expected=VAGUE              Predicted=HISTORY_DIRECT     Q: Vùng đất đó xưa kia thuộc về ai?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Ông ta có tài làm thơ không?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Di tích đó giờ nằm ở tỉnh nào?
+ - Expected=HISTORY_DIRECT     Predicted=OUT_OF_DOMAIN      Q: Quốc hiệu Việt Nam lần đầu được sử dụng dưới triều vua nào nhà Nguyễn?
+ - Expected=VAGUE              Predicted=HISTORY_DIRECT     Q: Vị vua đó có hiền không?
+ - Expected=INSUFFICIENT_INFO  Predicted=OUT_OF_DOMAIN      Q: Ai sáng tác bài hát 'Tự hào Đại Việt EDM' thời Mạc?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Ai là người viết ra cuốn sách đó?
+ - Expected=INSUFFICIENT_INFO  Predicted=OUT_OF_DOMAIN      Q: Vua Trần Nhân Tông từng tham gia hội nghị liên hành tinh ở đâu?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Ông ấy học võ ở đâu?
+ - Expected=HISTORY_DIRECT     Predicted=VAGUE              Q: Nhà Trần tổ chức lễ hội đền Trần hằng năm ở tỉnh nào ngày nay?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Cây cầu đó gãy năm nào?
+ - Expected=INSUFFICIENT_INFO  Predicted=OUT_OF_DOMAIN      Q: Ai là tác giả bài hát 'Đại Việt Future Bass' thời Mạc?
+ - Expected=VAGUE              Predicted=OUT_OF_DOMAIN      Q: Ai là thầy dạy của ông ấy?
+ - Expected=HISTORY_DIRECT     Predicted=VAGUE              Q: Đồng Khởi bùng nổ ở Bến Tre do ai lãnh đạo đầu tiên?
