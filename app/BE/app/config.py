@@ -87,24 +87,9 @@ class Settings(BaseSettings):
             "http://localhost:8000",  
         ]
         
-        if self.frontend_url not in origins:
+        if self.frontend_url and self.frontend_url not in origins:
             origins.append(self.frontend_url)
-        
-        if "vercel.app" in self.frontend_url:
-            try:
-                domain = self.frontend_url.split("//")[1].split(".")[0]
-                origins.append(f"https://{domain}.vercel.app")
-            except:
-                pass
             
-            origins.append("https://*.vercel.app")
-        
-        origins.extend([
-            "http://localhost:3001",
-            "http://localhost:3002",
-            "http://localhost:3003",
-        ])
-        
         return list(set(origins))  
     
     model_config = SettingsConfigDict(
