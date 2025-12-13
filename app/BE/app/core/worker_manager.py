@@ -2,32 +2,34 @@ import random
 import asyncio
 from typing import List, Dict
 import httpx
+import json
 from fastapi import HTTPException
+from app.config import settings
 
 class WorkerManager:
     def __init__(self):
-        self.chat_worker_urls: List[str] = []
-        self.quiz_worker_urls: List[str] = []
-    
-    def update_chat_workers(self, urls: List[str]):
-        self.chat_worker_urls = [url.strip('/') for url in urls if url]
-        print(f" Updated chat workers: {self.chat_worker_urls}")
-    
-    def update_quiz_workers(self, urls: List[str]):
-        self.quiz_worker_urls = [url.strip('/') for url in urls if url]
-        print(f" Updated quiz workers: {self.quiz_worker_urls}")
+        # Đọc worker URLs từ config
+        self.chat_worker_urls: List[str] = settings.chat_worker_urls
+        self.quiz_worker_urls: List[str] = settings.quiz_worker_urls
+        
+        print(f" WorkerManager initialized:")
+        print(f"   Chat Workers: {len(self.chat_worker_urls)} URLs")
+        print(f"   Quiz Workers: {len(self.quiz_worker_urls)} URLs")
     
     def get_chat_worker(self) -> str:
+        """Lấy ngẫu nhiên một chat worker"""
         if not self.chat_worker_urls:
-            raise HTTPException(status_code=503, detail="No chat workers available")
+            raise HTTPException(status_code=503, detail="No chat workers available. Please configure CHAT_WORKER_URLS in .env file")
         return random.choice(self.chat_worker_urls)
     
     def get_quiz_workers(self) -> List[str]:
+        """Lấy tất cả quiz workers"""
         if not self.quiz_worker_urls:
-            raise HTTPException(status_code=503, detail="No quiz workers available")
+            raise HTTPException(status_code=503, detail="No quiz workers available. Please configure QUIZ_WORKER_URLS in .env file")
         return self.quiz_worker_urls
     
     async def call_chat_worker(self, worker_url: str, message: str) -> str:
+        """Gọi chat worker"""
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
@@ -49,6 +51,7 @@ class WorkerManager:
                 raise HTTPException(status_code=500, detail=f"Chat worker error: {str(e)}")
     
     async def call_quiz_worker(self, worker_url: str, topic: str, num_questions: int, topic_ids: List[int] = None) -> List[Dict]:
+        """Gọi quiz worker"""
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
                 response = await client.post(
@@ -74,7 +77,7 @@ class WorkerManager:
                 
                 return questions
             except Exception as e:
-                print(f"Quiz worker error ({worker_url}): {e}")
+                print(f" Quiz worker error ({worker_url}): {e}")
                 return []
 
 worker_manager = WorkerManager()

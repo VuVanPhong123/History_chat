@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from pydantic import Field, validator, model_validator
 import os
+import json
 
 class Settings(BaseSettings):
     
@@ -60,6 +61,17 @@ class Settings(BaseSettings):
         description="URL của frontend để cấu hình CORS"
     )
     
+    # Thay đổi: Sử dụng string thay vì List[str]
+    chat_worker_urls_str: str = Field(
+        default="",
+        description="Danh sách chat worker URLs (phân cách bằng dấu phẩy)"
+    )
+    
+    quiz_worker_urls_str: str = Field(
+        default="",
+        description="Danh sách quiz worker URLs (phân cách bằng dấu phẩy)"
+    )
+    
     @model_validator(mode='after')
     def validate_settings(self):
         """Kiểm tra các biến bắt buộc"""
@@ -78,6 +90,25 @@ class Settings(BaseSettings):
             raise ValueError("\n".join(errors))
         
         return self
+    
+    # Thêm property để lấy danh sách URLs đã parse
+    @property
+    def chat_worker_urls(self) -> List[str]:
+        return self._parse_urls(self.chat_worker_urls_str)
+    
+    @property
+    def quiz_worker_urls(self) -> List[str]:
+        return self._parse_urls(self.quiz_worker_urls_str)
+    
+    def _parse_urls(self, urls_str: str) -> List[str]:
+        """Parse string URLs thành list"""
+        if not urls_str or not urls_str.strip():
+            return []
+        
+        # Loại bỏ khoảng trắng và phân tách bằng dấu phẩy
+        urls = [url.strip() for url in urls_str.split(',') if url.strip()]
+        # Loại bỏ URL trùng lặp
+        return list(dict.fromkeys(urls))
     
     @property
     def cors_origins(self) -> List[str]:
@@ -104,6 +135,14 @@ try:
     print(f" Config loaded successfully")
     print(f"   Environment: {settings.environment}")
     print(f"   Server: http://{settings.server_host}:{settings.server_port}")
+    print(f"   Chat Workers: {len(settings.chat_worker_urls)} URLs")
+    if settings.chat_worker_urls:
+        for url in settings.chat_worker_urls:
+            print(f"     - {url}")
+    print(f"   Quiz Workers: {len(settings.quiz_worker_urls)} URLs")
+    if settings.quiz_worker_urls:
+        for url in settings.quiz_worker_urls:
+            print(f"     - {url}")
 except Exception as e:
     print(f" Config validation failed: {e}")
     print(" Please check your .env file")

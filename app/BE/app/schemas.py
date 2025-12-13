@@ -9,9 +9,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-class AdminConfig(BaseModel):
-    chat_worker_urls: List[str]
-    quiz_worker_urls: List[str]
+# Xóa AdminConfig class vì không còn dùng nữa
 
 class ChatRequest(BaseModel):
     message: str
@@ -49,3 +47,13 @@ class ChatSessionOutput(BaseModel):
     title: str
     created_at: datetime
     messages: List[MessageHistory] = []
+
+class ChatStreamChunk(BaseModel):
+    chunk: str
+    session_id: int
+    status: str = "streaming"
+
+class ChatResponse(BaseModel):
+    session_id: int
+    message: str
+    status: str = "completed"

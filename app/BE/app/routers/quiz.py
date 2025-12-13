@@ -1,19 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+import json
 import asyncio
 from typing import List
 from app import schemas, crud
 from app.core.worker_manager import worker_manager
-from app.core.rag_store import rag_store
 from app.database import get_db
 from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["quiz"])
 
-@router.post("/generate", response_model=schemas.QuizResponse)
+@router.post("/generate")
 async def generate_quiz(
     request: schemas.QuizRequest,
     db: Session = Depends(get_db)
 ):
+    print(f"[Quiz] Nhận request: topic={request.topic}, num_questions={request.num_questions}, topic_ids={request.topic_ids}")
+    
     valid_counts = [10, 20, 30, 40]
     if request.num_questions not in valid_counts:
         raise HTTPException(status_code=400, detail=f"Number of questions must be one of: {valid_counts}")
@@ -33,119 +36,138 @@ async def generate_quiz(
         total_questions=request.num_questions
     )
     
-    num_workers = len(workers)
-    questions_per_worker = request.num_questions // num_workers
-    remainder = request.num_questions % num_workers
-    
-    tasks = []
-    for i, worker_url in enumerate(workers):
-        if i < remainder:
-            num_for_worker = questions_per_worker + 1
-        else:
-            num_for_worker = questions_per_worker
+    async def generate_stream():
+        all_questions = []
+        generated_count = 0
         
-        if num_for_worker > 0:
-            task = worker_manager.call_quiz_worker(
-                worker_url, 
-                request.topic,
-                num_for_worker,
-                request.topic_ids
-            )
-            tasks.append(task)
-    
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    all_questions = []
-    for result in results:
-        if isinstance(result, Exception):
-            print(f"Worker error: {result}")
-            continue
-        all_questions.extend(result)
-    
-    quiz_questions = []
-    for q in all_questions[:request.num_questions]:  
-        source_id = q.get("source_id", 0)
+        # Gửi thông tin test ban đầu
+        yield json.dumps({
+            "test_id": test.id,
+            "status": "started",
+            "total_questions": request.num_questions,
+            "generated_count": 0,
+            "message": f"Bắt đầu tạo {request.num_questions} câu hỏi..."
+        }) + "\n"
         
-        db_question = crud.create_quiz_question(
-            db,
-            test_id=test.id,
-            question_content=q.get("question", ""),
-            correct_answer=q.get("correct_answer", ""),
-            source_id=source_id
-        )
+        # Phân chia công việc cho các worker
+        num_workers = len(workers)
+        base_per_worker = request.num_questions // num_workers
+        remainder = request.num_questions % num_workers
         
-        # Thêm vào response
-        quiz_questions.append(schemas.QuizQuestionOutput(
-            question=q.get("question", ""),
-            options=q.get("options", []),
-            correct_answer=q.get("correct_answer", ""),
-            explanation=q.get("explanation", ""),
-            source_id=source_id
-        ))
-    
-    return schemas.QuizResponse(
-        test_id=test.id,
-        questions=quiz_questions
-    )
-
-@router.get("/tests")
-async def get_quiz_tests(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """Lấy danh sách bài test"""
-    user = crud.get_user(db, user_id=1)
-    if not user:
-        return []
-    
-    tests = crud.get_quiz_tests(db, user_id=user.id, skip=skip, limit=limit)
-    
-    return [
-        {
-            "id": test.id,
-            "topic": test.topic,
-            "score": test.score,
-            "total_questions": test.total_questions,
-            "created_at": test.created_at
-        }
-        for test in tests
-    ]
-
-@router.post("/tests/{test_id}/submit")
-async def submit_quiz(
-    test_id: int,
-    answers: List[dict],  
-    db: Session = Depends(get_db)
-):
-    test = db.query(crud.models.QuizTest).filter(crud.models.QuizTest.id == test_id).first()
-    if not test:
-        raise HTTPException(status_code=404, detail="Test not found")
-    
-    correct_count = 0
-    for answer in answers:
-        question_id = answer.get("question_id")
-        user_answer = answer.get("answer")
+        tasks = []
+        for i, worker_url in enumerate(workers):
+            num_for_worker = base_per_worker + (1 if i < remainder else 0)
+            if num_for_worker > 0:
+                task = asyncio.create_task(
+                    process_quiz_worker(
+                        worker_url, 
+                        request.topic,
+                        num_for_worker,
+                        request.topic_ids,
+                        i + 1,
+                        len(workers)
+                    )
+                )
+                tasks.append(task)
         
-        question = db.query(crud.models.QuizQuestion).filter(
-            crud.models.QuizQuestion.id == question_id,
-            crud.models.QuizQuestion.test_id == test_id
-        ).first()
+        # Thu thập kết quả từ các worker
+        for task in asyncio.as_completed(tasks):
+            try:
+                worker_questions, worker_id, worker_total = await task
+                all_questions.extend(worker_questions)
+                generated_count += len(worker_questions)
+                
+                # Gửi tiến trình
+                yield json.dumps({
+                    "test_id": test.id,
+                    "status": "progress",
+                    "total_questions": request.num_questions,
+                    "generated_count": generated_count,
+                    "current_worker": worker_id,
+                    "total_workers": worker_total,
+                    "message": f"Worker {worker_id}/{worker_total}: Đã tạo {len(worker_questions)} câu hỏi"
+                }) + "\n"
+                
+                # Gửi từng câu hỏi
+                for q in worker_questions:
+                    yield json.dumps({
+                        "test_id": test.id,
+                        "status": "question",
+                        "question": q,
+                        "message": "Nhận câu hỏi mới"
+                    }) + "\n"
+                    
+            except Exception as e:
+                print(f"Worker error: {e}")
+                yield json.dumps({
+                    "test_id": test.id,
+                    "status": "error",
+                    "message": f"Worker lỗi: {str(e)}"
+                }) + "\n"
         
-        if question:
-            is_correct = (user_answer == question.correct_answer)
-            question.user_answer = user_answer
-            question.is_correct = is_correct
+        # Lưu câu hỏi vào database (giới hạn số lượng)
+        saved_questions = []
+        for q in all_questions[:request.num_questions]:
+            source_id = q.get("source_id", 0)
             
-            if is_correct:
-                correct_count += 1
+            db_question = crud.create_quiz_question(
+                db,
+                test_id=test.id,
+                question_content=q.get("question", ""),
+                correct_answer=q.get("correct_answer", ""),
+                source_id=source_id
+            )
+            
+            saved_questions.append(schemas.QuizQuestionOutput(
+                question=q.get("question", ""),
+                options=q.get("options", []),
+                correct_answer=q.get("correct_answer", ""),
+                explanation=q.get("explanation", ""),
+                source_id=source_id
+            ))
+        
+        # Gửi kết quả cuối cùng
+        yield json.dumps({
+            "test_id": test.id,
+            "status": "completed",
+            "total_questions": len(saved_questions),
+            "generated_count": len(saved_questions),
+            "questions": [q.dict() for q in saved_questions],
+            "message": f"Hoàn thành! Đã tạo {len(saved_questions)} câu hỏi"
+        }) + "\n"
     
-    test.score = correct_count
-    db.commit()
+    return StreamingResponse(generate_stream(), media_type="application/x-ndjson")
+
+async def process_quiz_worker(worker_url: str, topic: str, num_questions: int, topic_ids: List[int], worker_id: int, total_workers: int):
+    """Xử lý worker quiz và trả về câu hỏi"""
+    import httpx
     
-    return {
-        "test_id": test_id,
-        "score": correct_count,
-        "total_questions": test.total_questions,
-        "percentage": (correct_count / test.total_questions) * 100 if test.total_questions > 0 else 0
-    }
+    questions = []
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        try:
+            response = await client.post(
+                f"{worker_url}/generate_quiz",
+                json={
+                    "num_questions": num_questions,
+                    "topic_ids": topic_ids or [],
+                    "session_id": f"worker_{worker_id}"
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            
+            # Đọc streaming response
+            async for line in response.aiter_lines():
+                if line.strip():
+                    try:
+                        data = json.loads(line)
+                        if data.get("status") == "processing" and "new_questions" in data:
+                            questions.extend(data["new_questions"])
+                    except json.JSONDecodeError:
+                        continue
+            
+            return questions, worker_id, total_workers
+            
+        except Exception as e:
+            print(f"Quiz worker {worker_url} error: {e}")
+            return [], worker_id, total_workers

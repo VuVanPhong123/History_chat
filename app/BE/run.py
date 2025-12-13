@@ -6,10 +6,26 @@ from app.config import settings
 
 def run_server():
     """Chạy FastAPI server"""
+    print("\n" + "="*50)
     print(" Starting History Chat & Quiz Proxy Server...")
     print(f" Environment: {settings.environment}")
-    print(f" Server: http://localhost:{settings.server_port}")
+    print(f" Server: http://{settings.server_host}:{settings.server_port}")
     print(f" API Docs: http://localhost:{settings.server_port}/docs")
+    
+    if settings.chat_worker_urls:
+        print(f" Chat Workers: {len(settings.chat_worker_urls)} URLs")
+        for i, url in enumerate(settings.chat_worker_urls, 1):
+            print(f"   {i}. {url}")
+    else:
+        print(" Chat Workers: ⚠️ Không có URL nào được cấu hình")
+    
+    if settings.quiz_worker_urls:
+        print(f" Quiz Workers: {len(settings.quiz_worker_urls)} URLs")
+        for i, url in enumerate(settings.quiz_worker_urls, 1):
+            print(f"   {i}. {url}")
+    else:
+        print(" Quiz Workers: ⚠️ Không có URL nào được cấu hình")
+    print("="*50 + "\n")
     
     uvicorn.run(
         "app.main:app",
@@ -59,5 +75,4 @@ if __name__ == "__main__":
             print(f"\n Copy this URL to your Frontend config:")
             print(f"   NEXT_PUBLIC_API_URL={public_url}")
     
-    print("\n" + "="*50)
     run_server()
