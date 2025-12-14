@@ -9,8 +9,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-# Xóa AdminConfig class vì không còn dùng nữa
-
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[int] = None
@@ -20,7 +18,6 @@ class ChatResponse(BaseModel):
     message: str
 
 class QuizRequest(BaseModel):
-    topic: str
     num_questions: int = 10
     topic_ids: Optional[List[int]] = None
 

@@ -77,6 +77,11 @@ async def root():
         "workers_configured": {
             "chat_workers": len(settings.chat_worker_urls),
             "quiz_workers": len(settings.quiz_worker_urls)
+        },
+        "quiz_topics": {
+            "total": 15,
+            "range": "1-15",
+            "note": "Frontend should map topic IDs to names"
         }
     }
 

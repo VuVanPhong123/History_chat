@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
-
+from typing import List
 # User operations
 def get_user(db: Session, user_id: int):
     return db.query(models.User).filter(models.User.id == user_id).first()
@@ -40,13 +40,21 @@ def get_chat_messages(db: Session, session_id: int, skip: int = 0, limit: int = 
         models.Message.session_id == session_id
     ).order_by(models.Message.timestamp).offset(skip).limit(limit).all()
 
-# Quiz operations
 def create_quiz_test(db: Session, user_id: int = 1, topic: str = "", total_questions: int = 0):
     db_test = models.QuizTest(user_id=user_id, topic=topic, total_questions=total_questions)
     db.add(db_test)
     db.commit()
     db.refresh(db_test)
     return db_test
+
+def parse_topic_ids(topic_str: str) -> List[int]:
+    if not topic_str or topic_str == "all":
+        return []
+    
+    try:
+        return [int(tid.strip()) for tid in topic_str.split(",") if tid.strip()]
+    except ValueError:
+        return []
 
 def create_quiz_question(db: Session, test_id: int, question_content: str, correct_answer: str, source_id: int):
     db_question = models.QuizQuestion(
@@ -59,6 +67,8 @@ def create_quiz_question(db: Session, test_id: int, question_content: str, corre
     db.commit()
     db.refresh(db_question)
     return db_question
+
+
 
 def update_quiz_score(db: Session, test_id: int, score: int):
     db_test = db.query(models.QuizTest).filter(models.QuizTest.id == test_id).first()

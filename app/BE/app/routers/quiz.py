@@ -15,11 +15,20 @@ async def generate_quiz(
     request: schemas.QuizRequest,
     db: Session = Depends(get_db)
 ):
-    print(f"[Quiz] Nhận request: topic={request.topic}, num_questions={request.num_questions}, topic_ids={request.topic_ids}")
+    print(f"[Quiz] Nhận request: num_questions={request.num_questions}, topic_ids={request.topic_ids}")
     
     valid_counts = [10, 20, 30, 40]
     if request.num_questions not in valid_counts:
         raise HTTPException(status_code=400, detail=f"Number of questions must be one of: {valid_counts}")
+    
+    # Validate topic_ids
+    if request.topic_ids:
+        invalid_ids = [tid for tid in request.topic_ids if tid not in range(1, 16)]
+        if invalid_ids:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid topic IDs: {invalid_ids}. Valid IDs are 1-15"
+            )
     
     workers = worker_manager.get_quiz_workers()
     if not workers:
@@ -29,10 +38,17 @@ async def generate_quiz(
     if not user:
         user = crud.create_user(db, username="default_user")
     
+    # Save topic_ids as comma-separated string for database
+    topic_str = ""
+    if request.topic_ids:
+        topic_str = ",".join(str(tid) for tid in request.topic_ids)
+    else:
+        topic_str = "all"  # Default value when no topic_ids specified
+    
     test = crud.create_quiz_test(
         db, 
         user_id=user.id,
-        topic=request.topic,
+        topic=topic_str,  # Store topic_ids as string
         total_questions=request.num_questions
     )
     
@@ -40,16 +56,17 @@ async def generate_quiz(
         all_questions = []
         generated_count = 0
         
-        # Gửi thông tin test ban đầu
+        # Send initial info
         yield json.dumps({
             "test_id": test.id,
             "status": "started",
             "total_questions": request.num_questions,
             "generated_count": 0,
+            "topic_ids": request.topic_ids or [],  # Send topic_ids to frontend
             "message": f"Bắt đầu tạo {request.num_questions} câu hỏi..."
         }) + "\n"
         
-        # Phân chia công việc cho các worker
+        # Distribute work to workers
         num_workers = len(workers)
         base_per_worker = request.num_questions // num_workers
         remainder = request.num_questions % num_workers
@@ -61,23 +78,22 @@ async def generate_quiz(
                 task = asyncio.create_task(
                     process_quiz_worker(
                         worker_url, 
-                        request.topic,
                         num_for_worker,
-                        request.topic_ids,
+                        request.topic_ids,  # Pass topic_ids only
                         i + 1,
                         len(workers)
                     )
                 )
                 tasks.append(task)
         
-        # Thu thập kết quả từ các worker
+        # Collect results from workers
         for task in asyncio.as_completed(tasks):
             try:
                 worker_questions, worker_id, worker_total = await task
                 all_questions.extend(worker_questions)
                 generated_count += len(worker_questions)
                 
-                # Gửi tiến trình
+                # Send progress
                 yield json.dumps({
                     "test_id": test.id,
                     "status": "progress",
@@ -85,10 +101,11 @@ async def generate_quiz(
                     "generated_count": generated_count,
                     "current_worker": worker_id,
                     "total_workers": worker_total,
+                    "topic_ids": request.topic_ids or [],  # Include topic_ids
                     "message": f"Worker {worker_id}/{worker_total}: Đã tạo {len(worker_questions)} câu hỏi"
                 }) + "\n"
                 
-                # Gửi từng câu hỏi
+                # Send each question
                 for q in worker_questions:
                     yield json.dumps({
                         "test_id": test.id,
@@ -105,7 +122,7 @@ async def generate_quiz(
                     "message": f"Worker lỗi: {str(e)}"
                 }) + "\n"
         
-        # Lưu câu hỏi vào database (giới hạn số lượng)
+        # Save questions to database (limit number)
         saved_questions = []
         for q in all_questions[:request.num_questions]:
             source_id = q.get("source_id", 0)
@@ -126,20 +143,20 @@ async def generate_quiz(
                 source_id=source_id
             ))
         
-        # Gửi kết quả cuối cùng
         yield json.dumps({
             "test_id": test.id,
             "status": "completed",
             "total_questions": len(saved_questions),
             "generated_count": len(saved_questions),
+            "topic_ids": request.topic_ids or [],  
             "questions": [q.dict() for q in saved_questions],
             "message": f"Hoàn thành! Đã tạo {len(saved_questions)} câu hỏi"
         }) + "\n"
     
     return StreamingResponse(generate_stream(), media_type="application/x-ndjson")
 
-async def process_quiz_worker(worker_url: str, topic: str, num_questions: int, topic_ids: List[int], worker_id: int, total_workers: int):
-    """Xử lý worker quiz và trả về câu hỏi"""
+async def process_quiz_worker(worker_url: str, num_questions: int, topic_ids: List[int], worker_id: int, total_workers: int):
+    """Process quiz worker and return questions"""
     import httpx
     
     questions = []
@@ -149,14 +166,13 @@ async def process_quiz_worker(worker_url: str, topic: str, num_questions: int, t
                 f"{worker_url}/generate_quiz",
                 json={
                     "num_questions": num_questions,
-                    "topic_ids": topic_ids or [],
+                    "topic_ids": topic_ids or [],  
                     "session_id": f"worker_{worker_id}"
                 },
                 headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
             
-            # Đọc streaming response
             async for line in response.aiter_lines():
                 if line.strip():
                     try:

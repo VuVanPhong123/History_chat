@@ -61,7 +61,6 @@ class Settings(BaseSettings):
         description="URL của frontend để cấu hình CORS"
     )
     
-    # Thay đổi: Sử dụng string thay vì List[str]
     chat_worker_urls_str: str = Field(
         default="",
         description="Danh sách chat worker URLs (phân cách bằng dấu phẩy)"
