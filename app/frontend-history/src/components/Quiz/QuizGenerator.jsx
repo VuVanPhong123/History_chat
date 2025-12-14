@@ -2,23 +2,26 @@ import { useState } from 'react';
 import { quizService } from '@/services/quizService';
 import toast from 'react-hot-toast';
 
-// Định nghĩa TOPIC_RANGES từ backend
 const TOPIC_RANGES = {
-  1: {"name": "Lịch Sử Việt Nam Tập 1: Từ khởi thủy đến thế kỷ X", "start": 0, "end": 1195},
-  2: {"name": "Lịch Sử Việt Nam Tập 2: Từ thế kỷ X đến thế kỷ XIV", "start": 1196, "end": 2553},
-  3: {"name": "Lịch Sử Việt Nam Tập 3: Từ thế kỷ XV đến thế kỷ XVI", "start": 2554, "end": 4195},
-  4: {"name": "Lịch Sử Việt Nam Tập 4: Từ thế kỷ XVII đến thế kỷ XVIII", "start": 4196, "end": 5414},
-  5: {"name": "Lịch Sử Việt Nam Tập 5: Từ năm 1802 đến năm 1858", "start": 5415, "end": 7025},
-  6: {"name": "Lịch Sử Việt Nam Tập 6: Từ năm 1859 đến năm 1896", "start": 7026, "end": 7911},
-  7: {"name": "Lịch Sử Việt Nam Tập 7: Từ năm 1897 đến năm 1918", "start": 7912, "end": 9278},
-  8: {"name": "Lịch Sử Việt Nam Tập 8: Từ năm 1919 đến năm 1930", "start": 9279, "end": 10569},
-  9: {"name": "Lịch Sử Việt Nam Tập 9: Từ năm 1930 đến năm 1945", "start": 10570, "end": 12201},
-  10: {"name": "Lịch Sử Việt Nam Tập 10: Từ năm 1945 đến năm 1950", "start": 12202, "end": 13658},
-  11: {"name": "Lịch Sử Việt Nam Tập 11: Từ năm 1951 đến năm 1954", "start": 13659, "end": 14797},
-  12: {"name": "Lịch Sử Việt Nam Tập 12: Từ năm 1954 đến năm 1965", "start": 14798, "end": 16041},
-  13: {"name": "Lịch Sử Việt Nam Tập 13: Từ năm 1965 đến năm 1975", "start": 16042, "end": 17441},
-  14: {"name": "Lịch Sử Việt Nam Tập 14: Từ năm 1975 đến năm 1986", "start": 17442, "end": 18585},
-  15: {"name": "Lịch Sử Việt Nam Tập 15: Từ năm 1986 đến năm 2000", "start": 18586, "end": 19508}
+  1: "Lịch Sử Việt Nam Tập 1: Từ khởi thủy đến thế kỷ X",
+  2: "Lịch Sử Việt Nam Tập 2: Từ thế kỷ X đến thế kỷ XIV",
+  3: "Lịch Sử Việt Nam Tập 3: Từ thế kỷ XV đến thế kỷ XVI",
+  4: "Lịch Sử Việt Nam Tập 4: Từ thế kỷ XVII đến thế kỷ XVIII",
+  5: "Lịch Sử Việt Nam Tập 5: Từ năm 1802 đến năm 1858",
+  6: "Lịch Sử Việt Nam Tập 6: Từ năm 1859 đến năm 1896",
+  7: "Lịch Sử Việt Nam Tập 7: Từ năm 1897 đến năm 1918",
+  8: "Lịch Sử Việt Nam Tập 8: Từ năm 1919 đến năm 1930",
+  9: "Lịch Sử Việt Nam Tập 9: Từ năm 1930 đến năm 1945",
+  10: "Lịch Sử Việt Nam Tập 10: Từ năm 1945 đến năm 1950",
+  11: "Lịch Sử Việt Nam Tập 11: Từ năm 1951 đến năm 1954",
+  12: "Lịch Sử Việt Nam Tập 12: Từ năm 1954 đến năm 1965",
+  13: "Lịch Sử Việt Nam Tập 13: Từ năm 1965 đến năm 1975",
+  14: "Lịch Sử Việt Nam Tập 14: Từ năm 1975 đến năm 1986",
+  15: "Lịch Sử Việt Nam Tập 15: Từ năm 1986 đến năm 2000"
+};
+
+const getTopicName = (topicId) => {
+  return TOPIC_RANGES[topicId] || `Tập ${topicId}`;
 };
 
 export default function QuizGenerator() {
@@ -44,10 +47,6 @@ export default function QuizGenerator() {
     setUserAnswers({});
     setSubmitted(false);
     
-    const topicName = selectedTopicIds.map(id => 
-      TOPIC_RANGES[id]?.name || `Tập ${id}`
-    ).join(' + ');
-    
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/quiz/generate`, {
         method: 'POST',
@@ -55,7 +54,6 @@ export default function QuizGenerator() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic: topicName,
           num_questions: numQuestions,
           topic_ids: selectedTopicIds
         })
@@ -146,14 +144,100 @@ export default function QuizGenerator() {
     }
   };
 
-  // ... (giữ nguyên các hàm handleAnswerSelect, handleSubmitQuiz, etc.)
+  const handleAnswerSelect = (questionIndex, answer) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionIndex]: answer
+    }));
+  };
+
+  const handleSubmitQuiz = () => {
+    if (Object.keys(userAnswers).length < quizData.questions.length) {
+      toast.error('Vui lòng trả lời tất cả các câu hỏi trước khi nộp bài');
+      return;
+    }
+    setSubmitted(true);
+    toast.success('Đã nộp bài!');
+  };
+
+  const toggleTopic = (topicId) => {
+    setSelectedTopicIds(prev => {
+      if (prev.includes(topicId)) {
+        return prev.filter(id => id !== topicId);
+      } else {
+        return [...prev, topicId];
+      }
+    });
+  };
+
+  const selectAllTopics = () => {
+    setSelectedTopicIds([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  };
+
+  const clearAllTopics = () => {
+    setSelectedTopicIds([]);
+  };
 
   return (
     <div className="space-y-6">
       <div className="card">
         <h2 className="text-xl font-bold mb-4">Tạo Đề Thi Lịch Sử</h2>
         
-        {/* ... (giữ nguyên phần chọn topic và số câu) */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Chọn chủ đề:
+          </label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <button
+              onClick={selectAllTopics}
+              className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+            >
+              Chọn tất cả
+            </button>
+            <button
+              onClick={clearAllTopics}
+              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            >
+              Bỏ chọn tất cả
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {Object.entries(TOPIC_RANGES).map(([id, name]) => (
+              <div key={id} className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={`topic-${id}`}
+                  checked={selectedTopicIds.includes(parseInt(id))}
+                  onChange={() => toggleTopic(parseInt(id))}
+                  className="mr-2"
+                />
+                <label htmlFor={`topic-${id}`} className="text-sm cursor-pointer">
+                  Tập {id}: {name.split(':')[0]}
+                </label>
+              </div>
+            ))}
+          </div>
+          {selectedTopicIds.length === 0 && (
+            <p className="text-red-500 text-sm mt-1">Vui lòng chọn ít nhất một chủ đề</p>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Số câu hỏi:
+          </label>
+          <div className="flex space-x-2">
+            {questionNumbers.map(num => (
+              <button
+                key={num}
+                onClick={() => setNumQuestions(num)}
+                className={`px-4 py-2 rounded ${numQuestions === num ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                {num} câu
+              </button>
+            ))}
+          </div>
+        </div>
         
         <button
           onClick={handleGenerateQuiz}
@@ -163,13 +247,12 @@ export default function QuizGenerator() {
           {isGenerating ? 'Đang tạo đề thi...' : 'Tạo Đề Thi'}
         </button>
         
-        {/* Hiển thị tiến trình */}
         {generationProgress && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
             <div className="flex justify-between items-center mb-2">
               <span className="font-medium text-blue-700">
-                {generationProgress.status === 'started' ? '🚀 Bắt đầu' : 
-                 generationProgress.status === 'progress' ? '⚡ Đang tạo' : '✅ Hoàn thành'}
+                {generationProgress.status === 'started' ? 'Bắt đầu' : 
+                 generationProgress.status === 'progress' ? 'Đang tạo' : 'Hoàn thành'}
               </span>
               <span className="text-sm text-blue-600">
                 {generationProgress.generatedCount}/{generationProgress.totalQuestions} câu
@@ -247,9 +330,9 @@ export default function QuizGenerator() {
                     <p className="font-medium">
                       Đáp án đúng: {question.correct_answer}
                       {userAnswers[index] === question.correct_answer ? (
-                        <span className="text-green-600 ml-2">✓ Đúng</span>
+                        <span className="text-green-600 ml-2">Đúng</span>
                       ) : (
-                        <span className="text-red-600 ml-2">✗ Sai</span>
+                        <span className="text-red-600 ml-2">Sai</span>
                       )}
                     </p>
                     <p className="text-sm mt-2 text-gray-600">

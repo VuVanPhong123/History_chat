@@ -1,15 +1,11 @@
 import api from './api';
 
 export const quizService = {
-  // Sửa: Thêm tham số topicIds (mảng số)
-  async generateQuiz(topic, numQuestions, topicIds = []) {
-    const requestBody = {
-      topic: topic,
+  async generateQuiz(numQuestions, topicIds = []) {
+    console.log('[QuizService] Request gửi đến /api/quiz/generate:', {
       num_questions: numQuestions,
       topic_ids: topicIds
-    };
-    
-    console.log('[QuizService] Request gửi đến /api/quiz/generate:', requestBody);
+    });
     
     try {
       const response = await fetch('/api/quiz/generate', {
@@ -17,14 +13,16 @@ export const quizService = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          num_questions: numQuestions,
+          topic_ids: topicIds
+        })
       });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Đọc streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
