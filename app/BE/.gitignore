@@ -1,3 +1,5 @@
 .env
 venv
 history.db
+__pycache__/
+*.py[cod]
