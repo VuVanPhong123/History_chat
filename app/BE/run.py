@@ -17,14 +17,14 @@ def run_server():
         for i, url in enumerate(settings.chat_worker_urls, 1):
             print(f"   {i}. {url}")
     else:
-        print(" Chat Workers: ⚠️ Không có URL nào được cấu hình")
+        print(" Chat Workers:  Không có URL nào được cấu hình")
     
     if settings.quiz_worker_urls:
         print(f" Quiz Workers: {len(settings.quiz_worker_urls)} URLs")
         for i, url in enumerate(settings.quiz_worker_urls, 1):
             print(f"   {i}. {url}")
     else:
-        print(" Quiz Workers: ⚠️ Không có URL nào được cấu hình")
+        print(" Quiz Workers:  Không có URL nào được cấu hình")
     print("="*50 + "\n")
     
     uvicorn.run(
