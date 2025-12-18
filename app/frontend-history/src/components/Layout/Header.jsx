@@ -31,12 +31,12 @@ export default function Header() {
               <Link href="/quiz" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-50">
                 Quiz
               </Link>
-              <Link href="/history" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-50">
+              {/* <Link href="/history" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-50">
                 Lịch sử
               </Link>
               <Link href="/settings" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-50">
                 Cài đặt
-              </Link>
+              </Link> */}
             </nav>
             
             {isAuthenticated && (
